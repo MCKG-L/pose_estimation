@@ -34,7 +34,7 @@ def image_to_base64_json(image_path, output_file="output.json"):
         return False
 
 # 示例用法
-image_file = "1.png"  # 替换为你的图片文件路径
+image_file = "img.png"  # 替换为你的图片文件路径
 output_file = "image_base64.json"  # 你想要保存的 JSON 文件名
 if image_to_base64_json(image_file, output_file):
     print("Conversion and save to JSON successful!")

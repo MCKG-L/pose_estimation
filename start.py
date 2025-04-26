@@ -213,34 +213,34 @@ def detect_sideplank_analysis(landmarks):
 def detect_situp_analysis(landmarks):
     return {"feedback": "Situp analysis not yet implemented"}
 
-
-def process_frame(frame_data):
-    """处理单帧图像进行姿态估计"""
-    try:
-        img_bytes = np.frombuffer(base64.b64decode(frame_data), dtype=np.uint8)
-        frame = cv2.imdecode(img_bytes, cv2.IMREAD_COLOR)
-        if frame is None:
-            print("Failed to decode frame")
-            return None
-
-        image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = pose_estimator.process(image)
-
-        landmarks = []
-        if results and results.pose_landmarks:
-            for landmark in results.pose_landmarks.landmark:
-                landmarks.append({
-                    'x': landmark.x,
-                    'y': landmark.y,
-                    'z': landmark.z,
-                    'visibility': landmark.visibility
-                })
-        return landmarks
-    except Exception as e:
-        print(f"Error processing frame: {e}")
-        return None
-
-
+#
+# def process_frame(frame_data):
+#     """处理单帧图像进行姿态估计"""
+#     try:
+#         img_bytes = np.frombuffer(base64.b64decode(frame_data), dtype=np.uint8)
+#         frame = cv2.imdecode(img_bytes, cv2.IMREAD_COLOR)
+#         if frame is None:
+#             print("Failed to decode frame")
+#             return None
+#
+#         image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+#         results = pose_estimator.process(image)
+#
+#         landmarks = []
+#         if results and results.pose_landmarks:
+#             for landmark in results.pose_landmarks.landmark:
+#                 landmarks.append({
+#                     'x': landmark.x,
+#                     'y': landmark.y,
+#                     'z': landmark.z,
+#                     'visibility': landmark.visibility
+#                 })
+#         return landmarks
+#     except Exception as e:
+#         print(f"Error processing frame: {e}")
+#         return None
+#
+# from R import R  # 导入 R 类
 # @app.route('/pose_estimation/<exercise>', methods=['POST'])
 # def estimate_pose(exercise):
 #     """接收图像数据和运动类型，返回姿态估计结果"""
@@ -248,11 +248,11 @@ def process_frame(frame_data):
 #         data = request.get_json()
 #         frame_data = data.get('image')  # Base64编码的图像数据
 #         if not frame_data:
-#             return jsonify({'error': 'No image data provided'}), 400
+#             return jsonify(R.error(400, "没有提供图像数据")), 400
 #
 #         landmarks = process_frame(frame_data)
 #         if landmarks is None:
-#             return jsonify({'error': 'Pose estimation failed'}), 500
+#             return jsonify(R.error(500, "姿态估计失败")), 500
 #
 #         # 根据运动类型调用相应的分析函数
 #         exercise_results = {}
@@ -277,13 +277,52 @@ def process_frame(frame_data):
 #         elif exercise == 'situp':
 #             exercise_results = detect_situp_analysis(landmarks)
 #         else:
-#             return jsonify({'error': 'Invalid exercise type'}), 400
+#             return jsonify(R.error(400, "无效的运动类型")), 400
 #
-#         return jsonify({'landmarks': landmarks, 'exercise_results': exercise_results}), 200
+#         # 返回姿态估计的结果
+#         return jsonify(R.ok("姿态估计成功", {"landmarks": landmarks, "exercise_results": exercise_results})), 200
 #
 #     except Exception as e:
-#         return jsonify({'error': str(e)}), 500
-from R import R  # 导入 R 类
+#         # 发生异常时返回错误信息
+#         return jsonify(R.error(500, str(e))), 500
+
+def process_frame(frame_data):
+    """处理单帧图像进行姿态估计"""
+    try:
+        img_bytes = np.frombuffer(base64.b64decode(frame_data), dtype=np.uint8)
+        frame = cv2.imdecode(img_bytes, cv2.IMREAD_COLOR)
+        if frame is None:
+            print("Failed to decode frame")
+            return None, None
+
+        image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = pose_estimator.process(image)
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+        landmarks = []
+        if results and results.pose_landmarks:
+            for landmark in results.pose_landmarks.landmark:
+                landmarks.append({
+                    'x': landmark.x,
+                    'y': landmark.y,
+                    'z': landmark.z,
+                    'visibility': landmark.visibility
+                })
+
+            pose_estimator.draw_landmarks(image)
+
+            # # 使用 mediapipe 绘制标记
+            # mp_drawing = mp.solutions.drawing_utils
+            # mp_pose = mp.solutions.pose
+            # mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+
+        return image, landmarks
+    except Exception as e:
+        print(f"Error processing frame: {e}")
+        return None, None
+
+
+from R import R
 @app.route('/pose_estimation/<exercise>', methods=['POST'])
 def estimate_pose(exercise):
     """接收图像数据和运动类型，返回姿态估计结果"""
@@ -293,12 +332,11 @@ def estimate_pose(exercise):
         if not frame_data:
             return jsonify(R.error(400, "没有提供图像数据")), 400
 
-        landmarks = process_frame(frame_data)
-        if landmarks is None:
+        frame, landmarks = process_frame(frame_data)
+        if landmarks is None or frame is None:
             return jsonify(R.error(500, "姿态估计失败")), 500
 
         # 根据运动类型调用相应的分析函数
-        exercise_results = {}
         if exercise == 'curl':
             exercise_results = detect_curl_analysis(landmarks)
         elif exercise == 'pushup':
@@ -322,12 +360,32 @@ def estimate_pose(exercise):
         else:
             return jsonify(R.error(400, "无效的运动类型")), 400
 
-        # 返回姿态估计的结果
-        return jsonify(R.ok("姿态估计成功", {"landmarks": landmarks, "exercise_results": exercise_results})), 200
+        print(exercise_results)
+        # 根据exercise_results绘制反馈信息到frame
+        y_offset = 50  # 反馈文本绘制的初始Y坐标
+        for key, feedback in exercise_results.items():
+            # 每个反馈项绘制到图像上
+            cv2.putText(frame, f"{key}: {feedback}", (10, y_offset),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
+            y_offset += 30  # 每条信息之间的间隔
+
+        # # 在frame上绘制运动分析的反馈
+        # cv2.putText(frame, f"Exercise Results: {exercise_results}", (10, y_offset),
+        #             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
+
+        cv2.imwrite("test_frame.jpg", frame)
+        # 返回带有绘制结果的frame
+        _, img_encoded = cv2.imencode('.jpg', frame)
+        frame_data = img_encoded.tobytes()
+
+        return jsonify(R.ok("姿态估计成功", {"exercise_results": exercise_results,
+                                             "image": base64.b64encode(frame_data).decode('utf-8')})), 200
+
+        # return jsonify(R.ok("姿态估计成功", {"landmarks": landmarks, "exercise_results": exercise_results})), 200
 
     except Exception as e:
-        # 发生异常时返回错误信息
         return jsonify(R.error(500, str(e))), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
