@@ -311,11 +311,6 @@ def process_frame(frame_data):
 
             pose_estimator.draw_landmarks(image)
 
-            # # 使用 mediapipe 绘制标记
-            # mp_drawing = mp.solutions.drawing_utils
-            # mp_pose = mp.solutions.pose
-            # mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
-
         return image, landmarks
     except Exception as e:
         print(f"Error processing frame: {e}")
@@ -339,7 +334,7 @@ def estimate_pose(exercise):
         # 根据运动类型调用相应的分析函数
         if exercise == 'curl':
             exercise_results = detect_curl_analysis(landmarks)
-        elif exercise == 'pushup':
+        elif exercise == 'push-up':
             exercise_results = detect_pushup_analysis(landmarks)
         elif exercise == 'squat':
             exercise_results = detect_squat_analysis(landmarks)
@@ -347,15 +342,13 @@ def estimate_pose(exercise):
             exercise_results = detect_lunge_analysis(landmarks)
         elif exercise == 'plank':
             exercise_results = detect_plank_analysis(landmarks)
-        elif exercise == 'highknee':
+        elif exercise == 'high-knee':
             exercise_results = detect_highknee_analysis(landmarks)
         elif exercise == 'jump':
             exercise_results = detect_jump_analysis(landmarks)
-        elif exercise == 'jumping_jack':
+        elif exercise == 'jumping-jack':
             exercise_results = detect_jumping_jack_analysis(landmarks)
-        elif exercise == 'sideplank':
-            exercise_results = detect_sideplank_analysis(landmarks)
-        elif exercise == 'situp':
+        elif exercise == 'sit-up':
             exercise_results = detect_situp_analysis(landmarks)
         else:
             return jsonify(R.error(400, "无效的运动类型")), 400
@@ -373,7 +366,7 @@ def estimate_pose(exercise):
         # cv2.putText(frame, f"Exercise Results: {exercise_results}", (10, y_offset),
         #             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
 
-        cv2.imwrite("test_frame.jpg", frame)
+        # cv2.imwrite("test_frame.jpg", frame)
         # 返回带有绘制结果的frame
         _, img_encoded = cv2.imencode('.jpg', frame)
         frame_data = img_encoded.tobytes()
@@ -381,11 +374,7 @@ def estimate_pose(exercise):
         return jsonify(R.ok("姿态估计成功", {"exercise_results": exercise_results,
                                              "image": base64.b64encode(frame_data).decode('utf-8')})), 200
 
-        # return jsonify(R.ok("姿态估计成功", {"landmarks": landmarks, "exercise_results": exercise_results})), 200
-
     except Exception as e:
         return jsonify(R.error(500, str(e))), 500
-
-
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
